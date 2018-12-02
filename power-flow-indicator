@@ -4,12 +4,13 @@
 #
 # Author: Serg Kolo , contact: 1047481448@qq.com
 # Date: July 21, 2016
-# Purpose: Indicator that displays power  
+# Purpose: Indicator that displays power
 #          consumption of laptop battery
 #
 # Written for: http://askubuntu.com/q/801003/295286
 # Tested on: Ubuntu 16.04 LTS
 #
+# With modifications by Antonio Cunei
 #
 #
 # Licensed under The MIT License (MIT).
@@ -53,11 +54,13 @@ class PowerFlowIndicator(object):
     def __init__(self, label_format):
         self.label_format = label_format
         self.icon_path = os.path.dirname(os.path.realpath(__file__))
-        category = appindicator.IndicatorCategory.APPLICATION_STATUS
+        category = appindicator.IndicatorCategory.HARDWARE
         init_info = ['power-flow-indicator', "", category]
         self.app = appindicator.Indicator.new(*init_info)
-        self.app.set_status(appindicator.IndicatorStatus.ACTIVE)
-        self.app.set_icon(os.path.join(self.icon_path, "pwi_icon.png"))
+        self.app.set_status(appindicator.IndicatorStatus.PASSIVE)
+#        self.app.set_icon(os.path.join(self.icon_path, "pwi_icon.png"))
+        self.app.set_icon(os.path.join(self.icon_path, "pwi_icon_4.png"))
+#        self.app.set_icon(os.path.join(self.icon_path, "oneone.png"))
 
         self.app_menu = gtk.Menu()
         self.app_menu_quit = gtk.MenuItem('Quit')
@@ -66,7 +69,17 @@ class PowerFlowIndicator(object):
         self.app_menu.append(self.app_menu_quit)
         self.app.set_menu(self.app_menu)
 
+        # Note that the value changes every 8 seconds,
+        # therefore there is no point in checkig it more
+        # frequently. In principle, we could monitor the
+        # the value frequently initially, until the first
+        # change, then set the timer to 8 seconds, so that
+        # the indicator is updated just after an updated
+        # value is available.
+
         self.update_label()
+        glib.timeout_add_seconds(4, self.update_label)
+
 
     def run(self):
         try:
@@ -134,7 +147,8 @@ class PowerFlowIndicator(object):
         if on_battery:
             return {"W": float(energy_rate), "mA": current, "A": current / 1000}
         else:
-            return "on AC"
+            return "" # "on AC"
+
     def update_label(self):
         info = self.get_power_info()
 
@@ -143,9 +157,13 @@ class PowerFlowIndicator(object):
         else:
             label_text = self.label_format.format(**info)
 
-        self.app.set_label(label_text, "")
-        glib.timeout_add_seconds(1, self.update_label)
+        if (info == ""):
+            self.app.set_status(appindicator.IndicatorStatus.PASSIVE)
+        else:
+            self.app.set_status(appindicator.IndicatorStatus.ACTIVE)
 
+        self.app.set_label(label_text, "")
+        return True
 
 def main():
     parser = argparse.ArgumentParser(
